@@ -96,42 +96,6 @@ done
 #$DEBUG && debug "Argument parsing done"
 
 
-
-#==============================================================================
-# Data Detection
-#==============================================================================
-
-#--- CPU Detection ----------------------------------------
-
-echo "Detecting CPU"
-DISCOVERED_CPU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- grep "model name" /proc/cpuinfo | tail -n 1 | awk -F: '{print $2}')
-$DEBUG && debug "Cpu is $DISCOVERED_CPU"
-echo $DISCOVERED_CPU > $DATADIR/cpu
-
-#--- Kernel Detection -------------------------------------
-
-echo "Detecting Kernel"
-DISCOVERED_KERNEL=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- uname -r)
-$DEBUG && debug "Kernel is $DISCOVERED_KERNEL"
-echo $DISCOVERED_KERNEL > $DATADIR/kernel
-
-
-#--- K8S Version Detection --------------------------------
-
-echo "Detecting Kubernetes version"
-DISCOVERED_K8S_VERSION=$(kubectl version --short | awk '$1=="Server" {print $3}' )
-$DEBUG && debug "Discovered k8s version is $DISCOVERED_K8S_VERSION"
-echo $DISCOVERED_K8S_VERSION > $DATADIR/k8s-version
-
-#--- MTU Detection ----------------------------------------
-
-echo "Detecting CNI MTU"
-CNI_MTU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- ip link \
-    | grep "UP,LOWER_UP" | grep -v LOOPBACK | grep -oE "mtu [0-9]*"| $BIN_AWK '{print $2}')
-$DEBUG && debug "CNI MTU is $CNI_MTU"
-echo $CNI_MTU > $DATADIR/mtu
-
-
 echo "Deploying iperf server on node $SERVER_NODE"
 cat <<EOF | kubectl apply $NAMESPACEOPT -f - >/dev/null|| fatal "Cannot create server pod"
 apiVersion: v1
@@ -191,6 +155,36 @@ spec:
   restartPolicy: Never
 EOF
 sleep 300
+#==============================================================================
+# Data Detection
+#==============================================================================
+
+#--- CPU Detection ----------------------------------------
+
+echo "Detecting CPU"
+DISCOVERED_CPU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- grep "model name" /proc/cpuinfo | tail -n 1 | awk -F: '{print $2}')
+echo $DISCOVERED_CPU > $DATADIR/cpu
+
+#--- Kernel Detection -------------------------------------
+
+echo "Detecting Kernel"
+DISCOVERED_KERNEL=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- uname -r)
+echo $DISCOVERED_KERNEL > $DATADIR/kernel
+
+
+#--- K8S Version Detection --------------------------------
+
+echo "Detecting Kubernetes version"
+DISCOVERED_K8S_VERSION=$(kubectl version --short | awk '$1=="Server" {print $3}' )
+echo $DISCOVERED_K8S_VERSION > $DATADIR/k8s-version
+
+#--- MTU Detection ----------------------------------------
+
+echo "Detecting CNI MTU"
+CNI_MTU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- ip link \
+    | grep "UP,LOWER_UP" | grep -v LOOPBACK | grep -oE "mtu [0-9]*"| $BIN_AWK '{print $2}')
+echo $CNI_MTU > $DATADIR/mtu
+
 function compute-text-result {
     echo "========================================================="
     echo " Benchmark Results"
