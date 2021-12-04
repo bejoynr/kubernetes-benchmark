@@ -154,4 +154,9 @@ spec:
     kubernetes.io/hostname: $CLIENT_NODE
   restartPolicy: Never
 EOF
+sleep 30
+CNI_MTU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- ip link \
+	| grep "UP,LOWER_UP" | grep -v LOOPBACK | grep -oE "mtu [0-9]*"| awk '{print $2}')
+echo MTU of server pod is $CNI_MTU
+kubectl logs -n iperf iperf-client -f
 
