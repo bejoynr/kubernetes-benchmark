@@ -92,8 +92,8 @@ do
     shift
 done
 
-[ "$UNKNOWN_ARGLIST" != "" ] && fatal "Unknown arguments : $UNKNOWN_ARGLIST"
-$DEBUG && debug "Argument parsing done"
+#[ "$UNKNOWN_ARGLIST" != "" ] && fatal "Unknown arguments : $UNKNOWN_ARGLIST"
+#$DEBUG && debug "Argument parsing done"
 
 
 
@@ -103,14 +103,14 @@ $DEBUG && debug "Argument parsing done"
 
 #--- CPU Detection ----------------------------------------
 
-info "Detecting CPU"
+echo "Detecting CPU"
 DISCOVERED_CPU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- grep "model name" /proc/cpuinfo | tail -n 1 | awk -F: '{print $2}')
 $DEBUG && debug "Cpu is $DISCOVERED_CPU"
 echo $DISCOVERED_CPU > $DATADIR/cpu
 
 #--- Kernel Detection -------------------------------------
 
-info "Detecting Kernel"
+echo "Detecting Kernel"
 DISCOVERED_KERNEL=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- uname -r)
 $DEBUG && debug "Kernel is $DISCOVERED_KERNEL"
 echo $DISCOVERED_KERNEL > $DATADIR/kernel
@@ -118,35 +118,21 @@ echo $DISCOVERED_KERNEL > $DATADIR/kernel
 
 #--- K8S Version Detection --------------------------------
 
-info "Detecting Kubernetes version"
+echo "Detecting Kubernetes version"
 DISCOVERED_K8S_VERSION=$(kubectl version --short | awk '$1=="Server" {print $3}' )
 $DEBUG && debug "Discovered k8s version is $DISCOVERED_K8S_VERSION"
 echo $DISCOVERED_K8S_VERSION > $DATADIR/k8s-version
 
 #--- MTU Detection ----------------------------------------
 
-info "Detecting CNI MTU"
+echo "Detecting CNI MTU"
 CNI_MTU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- ip link \
     | grep "UP,LOWER_UP" | grep -v LOOPBACK | grep -oE "mtu [0-9]*"| $BIN_AWK '{print $2}')
 $DEBUG && debug "CNI MTU is $CNI_MTU"
 echo $CNI_MTU > $DATADIR/mtu
 
-function compute-text-result {
-    echo "========================================================="
-    echo " Benchmark Results"
-    echo "========================================================="
-    echo " Name            : $BENCHMARK_RUN_NAME"
-    echo " Date            : $BENCHMARK_DATE UTC"
-    echo " Server          : $SERVER_NODE"
-    echo " Client          : $CLIENT_NODE"
-    echo "========================================================="
-    echo "  Discovered CPU         : $(cat $DATADIR/cpu)"
-    echo "  Discovered Kernel      : $(cat $DATADIR/kernel)"
-    echo "  Discovered k8s version : $(cat $DATADIR/k8s-version)"
-    echo "  Discovered MTU         : $(cat $DATADIR/mtu)"
-}
 
-info "Deploying iperf server on node $SERVER_NODE"
+echo "Deploying iperf server on node $SERVER_NODE"
 cat <<EOF | kubectl apply $NAMESPACEOPT -f - >/dev/null|| fatal "Cannot create server pod"
 apiVersion: v1
 kind: Pod
@@ -181,7 +167,7 @@ spec:
       targetPort: 5201
       name: udp
 EOF
-info "Starting pod $POD_NAME on node $CLIENT_NODE"
+echo "Starting pod $POD_NAME on node $CLIENT_NODE"
 cat <<-EOF | kubectl apply $NAMESPACEOPT -f - >/dev/null|| fatal "Cannot create pod $POD_NAME"
 apiVersion: v1
 kind: Pod
@@ -204,4 +190,20 @@ spec:
     kubernetes.io/hostname: $CLIENT_NODE
   restartPolicy: Never
 EOF
+sleep 300
+function compute-text-result {
+    echo "========================================================="
+    echo " Benchmark Results"
+    echo "========================================================="
+    echo " Name            : $BENCHMARK_RUN_NAME"
+    echo " Date            : $BENCHMARK_DATE UTC"
+    echo " Server          : $SERVER_NODE"
+    echo " Client          : $CLIENT_NODE"
+    echo "========================================================="
+    echo "  Discovered CPU         : $(cat $DATADIR/cpu)"
+    echo "  Discovered Kernel      : $(cat $DATADIR/kernel)"
+    echo "  Discovered k8s version : $(cat $DATADIR/k8s-version)"
+    echo "  Discovered MTU         : $(cat $DATADIR/mtu)"
+}
 compute-text-result
+
