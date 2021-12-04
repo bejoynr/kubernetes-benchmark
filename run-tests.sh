@@ -7,7 +7,7 @@ CLIENT_POD_NAME="iperf-client"
 SERVER_SERVICE_NAME="iperf-svc"
 DATADIR="/tmp"
 EXECID="$$"
-BENCHMARK_RUN_NAME="knb-$EXECID"
+BENCHMARK_RUN_NAME="difi-$EXECID"
 NAMESPACEOPT="iperf"
 POD_WAIT_TIMEOUT="30"
 BENCHMARK_DURATION="10"
@@ -45,42 +45,42 @@ do
             shift
             [ "$1" = "" ] && fatal "$arg flag must be followed by a value"
             SERVER_NODE=$1
-            info "Server node will be '$SERVER_NODE'"
+            echo "Server node will be '$SERVER_NODE'"
             ;;
         # Define kubernetes node name that will host the server part
         --client-node|-cn)
             shift
             [ "$1" = "" ] && fatal "$arg flag must be followed by a value"
             CLIENT_NODE=$1
-            info "Client node will be '$CLIENT_NODE'"
+            echo "Client node will be '$CLIENT_NODE'"
             ;;
         # Set the benchmark duration for each test in seconds
         --duration|-d)
             shift
             [ "$1" = "" ] && fatal "$arg flag must be followed by a value"
             BENCHMARK_DURATION="$1"
-            info "Setting benchmark duration to ${1}s"
+            echo "Setting benchmark duration to ${1}s"
             ;;
         # Set the target kubernetes namespace
         --namespace|-n)
             shift
             [ "$1" = "" ] && fatal "$arg flag must be followed by a value"
             NAMESPACEOPT="--namespace $1"
-            info "Setting target namespace to '$1'"
+            echo "Setting target namespace to '$1'"
            ;;
         # Set the name of this benchmark run
         --name)
             shift
             [ "$1" = "" ] && fatal "$arg flag must be followed by a value"
             BENCHMARK_RUN_NAME="$1"
-            info "Setting benchmark run nameto '$1'"
+            echo "Setting benchmark run nameto '$1'"
             ;;
         # Set the pod ready wait timeout in seconds
         --timeout|-t)
             shift
             [ "$1" = "" ] && fatal "$arg flag must be followed by a value"
             POD_WAIT_TIMEOUT="$1"
-            info "Setting pod wait timeout to ${1}s"
+            echo "Setting pod wait timeout to ${1}s"
             ;;
         # Display help message
         --help|-h)
@@ -154,50 +154,4 @@ spec:
     kubernetes.io/hostname: $CLIENT_NODE
   restartPolicy: Never
 EOF
-sleep 300
-#==============================================================================
-# Data Detection
-#==============================================================================
-
-#--- CPU Detection ----------------------------------------
-
-echo "Detecting CPU"
-DISCOVERED_CPU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- grep "model name" /proc/cpuinfo | tail -n 1 | awk -F: '{print $2}')
-echo $DISCOVERED_CPU > $DATADIR/cpu
-
-#--- Kernel Detection -------------------------------------
-
-echo "Detecting Kernel"
-DISCOVERED_KERNEL=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- uname -r)
-echo $DISCOVERED_KERNEL > $DATADIR/kernel
-
-
-#--- K8S Version Detection --------------------------------
-
-echo "Detecting Kubernetes version"
-DISCOVERED_K8S_VERSION=$(kubectl version --short | awk '$1=="Server" {print $3}' )
-echo $DISCOVERED_K8S_VERSION > $DATADIR/k8s-version
-
-#--- MTU Detection ----------------------------------------
-
-echo "Detecting CNI MTU"
-CNI_MTU=$(kubectl exec -i  $NAMESPACEOPT $SERVER_POD_NAME -- ip link \
-    | grep "UP,LOWER_UP" | grep -v LOOPBACK | grep -oE "mtu [0-9]*"| $BIN_AWK '{print $2}')
-echo $CNI_MTU > $DATADIR/mtu
-
-function compute-text-result {
-    echo "========================================================="
-    echo " Benchmark Results"
-    echo "========================================================="
-    echo " Name            : $BENCHMARK_RUN_NAME"
-    echo " Date            : $BENCHMARK_DATE UTC"
-    echo " Server          : $SERVER_NODE"
-    echo " Client          : $CLIENT_NODE"
-    echo "========================================================="
-    echo "  Discovered CPU         : $(cat $DATADIR/cpu)"
-    echo "  Discovered Kernel      : $(cat $DATADIR/kernel)"
-    echo "  Discovered k8s version : $(cat $DATADIR/k8s-version)"
-    echo "  Discovered MTU         : $(cat $DATADIR/mtu)"
-}
-compute-text-result
 
