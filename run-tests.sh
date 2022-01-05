@@ -144,7 +144,7 @@ spec:
   containers:
   - args:
     - bash
-    image: bejoyr/difi-benchmark:v2
+    image: bejoyr/difi-benchmark:v4
     imagePullPolicy: Always
     name: debian1
     stdin: true
